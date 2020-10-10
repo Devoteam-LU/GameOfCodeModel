@@ -9,7 +9,10 @@ Original file is located at
 
 import pandas as pd
 import pyodbc
-
+import torch
+import torch.utils.data as data_utils
+from torch.utils.tensorboard import SummaryWriter
+import numpy as np
 from devolution_network import DevolutionNetwork
 from utils import save_model, load_model
 
@@ -25,19 +28,10 @@ bdd_data = pd.read_sql_query('SELECT * FROM [privilege].[dbo].[userdetailtrains]
 credit_scores = pd.read_sql_query(
     'SELECT [UserId],[Amount],[Probability] FROM [privilege].[dbo].[RepaymentProbabilities]', conn)
 
-import torch
-import torch.utils.data as data_utils
-
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.tensorboard import SummaryWriter
-import numpy as np
 
 # merge user data and creditscore
 data = []
 for index, row in credit_scores.iterrows():
-    # print(row)
-    # break
     client_detail = bdd_data[bdd_data.UserId == row["UserId"]]
     new_row = [client_detail.iloc[0][col] for col in bdd_data.head()]
     new_row += [row["Amount"], row["Probability"]]
@@ -46,8 +40,23 @@ for index, row in credit_scores.iterrows():
 data = pd.DataFrame(data, columns=list(bdd_data.head()) + ["Amount", "Probability"])
 del data["CreatedByUserId"]
 del data["UserId"]
+del data["CreditScore"]
 del data["CreationDate"]
 del data["Id"]
+
+# noisy data
+del data["Income"]
+del data["JobClass"]
+del data["EmploymentType"]
+del data["SocialStability"]
+del data["SocialExposure"]
+del data["SocialQuality"]
+
+pd.set_option("display.max_rows", None, "display.max_columns", None)
+print(data)
+data = data.iloc[:3]
+exit()
+# exit()
 
 # preprocessing the data
 data = data.replace("M", 0)
@@ -55,15 +64,14 @@ data = data.replace("F", 1)
 data = data.replace(True, 1)
 data = data.replace(False, 0)
 
-normalize_data = False
-if normalize_data:
-    # normalisation
-    from sklearn import preprocessing
 
-    x = data.values  # returns a numpy array
-    min_max_scaler = preprocessing.MinMaxScaler()
-    x_scaled = min_max_scaler.fit_transform(x)
-    data = pd.DataFrame(x_scaled, columns=list(data.head()))
+
+dff = data.drop('Probability', axis=1)
+mean = dff.mean().values
+std = dff.std().values
+
+# compute mean and variance of the data
+
 
 ratio = 0.75
 n_train = int(ratio * data.shape[0])
@@ -86,21 +94,27 @@ testset = create_dataset(test_df)
 
 mini_batch_size = n_train
 
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=mini_batch_size, shuffle=True, num_workers=2)
-testloader = torch.utils.data.DataLoader(testset, batch_size=mini_batch_size, shuffle=False, num_workers=2)
+trainloader = torch.utils.data.DataLoader(
+    trainset,
+    batch_size=mini_batch_size,
+    shuffle=True, num_workers=1)
+testloader = torch.utils.data.DataLoader(
+    testset,
+    batch_size=mini_batch_size,
+    shuffle=False, num_workers=1)
 
-hidden_layer_size = [32, 16]
-net = DevolutionNetwork(input_size, hidden_layer_size, 1)
+hidden_layer_size = [32]
+net = DevolutionNetwork(input_size, hidden_layer_size, 1, mean, std)
 print(net)
 
-criterion = torch.nn.MSELoss()
-optimizer = torch.optim.Adam(net.parameters(), lr=0.01)  # 0.2)
+criterion = torch.nn.L1Loss()
+optimizer = torch.optim.Adam(net.parameters(), lr=0.001)  # 0.2)
 stopping_loss = 0.001
 
 # load data from loader
 writer = SummaryWriter()
 
-for epoch in range(100):  # loop over the dataset multiple times
+for epoch in range(10000):  # loop over the dataset multiple times
 
     for i, (inputs, labels) in enumerate(trainloader):  # loop over minibatches
         optimizer.zero_grad()
@@ -121,7 +135,8 @@ for epoch in range(100):  # loop over the dataset multiple times
                 optimizer.zero_grad()
                 outputs = net(inputs)
                 for i_sample, (p, l) in enumerate(zip(outputs, labels)):
-                    print("[epoch={}][{}] y={} y_pred={} loss={}".format(epoch, i_sample, l, p, criterion(l, p)))
+                    print("[epoch={}][{}] y={} y_pred={} loss={}"
+                          .format(epoch, i_sample, l, p, criterion(l, p)))
                 loss += criterion(outputs, labels)
             loss /= (i + 1)
             writer.add_scalar("Loss/{}".format(label), loss, epoch)
