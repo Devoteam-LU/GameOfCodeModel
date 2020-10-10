@@ -90,7 +90,18 @@ def update_graph(user_id, model_type):
         Y = [4, 5, 6]
     else:
         X, Y, X_graph = compute(user_id, model_type)
-    fig = px.line(x=X_graph, y=Y, log_x=True, title="Probability of reimbursement given lend amount.")
+    data = []
+    for x, y in zip(X_graph, Y):
+        data.append([x, y])
+    df = pd.DataFrame(data,columns=["Amount lend","Probability"])
+    fig = px.line(df,x="Amount lend",y="Probability",title="Likelihood or reimbursement",log_x=True)
+    fig.update_layout(
+        font=dict(
+            family="Courier New, monospace",
+            size=18,
+            color="RebeccaPurple"
+        )
+    )
     fig.update_yaxes(range=[0, 1])
     return fig
 
@@ -119,6 +130,7 @@ def compute(user_id, model_type, amounts=[10, 100, 500, 1000, 5000, 7500, 10000,
         pass
     return X, Y, X_graph
 
+
 @server.route('/api/<username>')
 def meteo(username):
     amounts = [10, 100, 500, 1000, 5000, 7500, 10000, 50000, 100000]
@@ -131,4 +143,4 @@ def meteo(username):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=False)
+    app.run_server(debug=False, port=8080, host="0.0.0.0")
