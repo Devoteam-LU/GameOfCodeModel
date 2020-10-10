@@ -7,7 +7,7 @@ _, _, _, _, trainset, testset, Xtrain, Ytrain, Xtest, Ytest = create_data()
 # Fit regression model
 tree = DecisionTreeRegressor(max_depth=2)
 
-tree.fit([x.tolist() for x, y in trainset], Ytrain)
+tree.fit(Xtrain, Ytrain)
 print("prediction ....")
 
 save_tree(tree, "regression_tree_model")
