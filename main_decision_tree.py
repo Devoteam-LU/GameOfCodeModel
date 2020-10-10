@@ -10,13 +10,12 @@ tree = DecisionTreeRegressor(max_depth=2)
 tree.fit([x.tolist() for x, y in trainset], Ytrain)
 print("prediction ....")
 
-
-save_tree(tree,"regression_tree_model")
+save_tree(tree, "regression_tree_model")
 
 tree = load_tree("regression_tree_model")
 
-Ytrain_ = tree.predict([x.tolist() for x, y in trainset])
-Ytest_ = tree.predict([x.tolist() for x, y in testset])
+Ytrain_ = tree.predict(Xtrain)
+Ytest_ = tree.predict(Xtest)
 
 print("--- train set ----")
 for y, y_ in zip(Ytrain, Ytrain_):
@@ -24,4 +23,3 @@ for y, y_ in zip(Ytrain, Ytrain_):
 print("--- test set ----")
 for y, y_ in zip(Ytest, Ytest_):
     print(y, y_)
-
