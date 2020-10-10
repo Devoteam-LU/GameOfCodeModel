@@ -10,6 +10,9 @@ Original file is located at
 import pandas as pd
 import pyodbc
 
+from devolution_network import DevolutionNetwork
+from utils import save_model, load_model
+
 conn = pyodbc.connect(DRIVER='{ODBC Driver 17 for SQL Server}',
                       SERVER='devohackaton.database.windows.net',
                       DATABASE='privilege',
@@ -86,36 +89,8 @@ mini_batch_size = n_train
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=mini_batch_size, shuffle=True, num_workers=2)
 testloader = torch.utils.data.DataLoader(testset, batch_size=mini_batch_size, shuffle=False, num_workers=2)
 
-
-class Net(torch.nn.Module):
-    def __init__(self, n_feature, h_sizes, out_size):
-        super(Net, self).__init__()
-        self.bn1 = nn.BatchNorm1d(num_features=n_feature)
-
-        self.input = nn.Linear(n_feature, h_sizes[0])
-        self.hidden = []
-        for k in range(len(h_sizes) - 1):
-            self.hidden.append(nn.Linear(h_sizes[k], h_sizes[k + 1]))
-        self.output = nn.Linear(h_sizes[-1], out_size)
-
-    def forward(self, x):
-        x = self.bn1(x)
-        x = F.relu(self.input(x))
-
-        for layer in self.hidden:
-            x = F.relu(layer(x))
-        # x = F.softmax(self.output(x), dim=1)
-        x = self.output(x)
-        return x
-
-
-def save_model():
-    PATH = './model.pth'
-    torch.save(net.state_dict(), PATH)
-
-
 hidden_layer_size = [32, 16]
-net = Net(input_size, hidden_layer_size, 1)
+net = DevolutionNetwork(input_size, hidden_layer_size, 1)
 print(net)
 
 criterion = torch.nn.MSELoss()
@@ -125,7 +100,7 @@ stopping_loss = 0.001
 # load data from loader
 writer = SummaryWriter()
 
-for epoch in range(1000):  # loop over the dataset multiple times
+for epoch in range(100):  # loop over the dataset multiple times
 
     for i, (inputs, labels) in enumerate(trainloader):  # loop over minibatches
         optimizer.zero_grad()
@@ -135,10 +110,8 @@ for epoch in range(1000):  # loop over the dataset multiple times
         optimizer.step()
         minibatch_loss = loss.item()
 
-        PATH = './model.pth'
-        torch.save(net.state_dict(), PATH)
+        save_model(net, "model")
         writer.add_scalar("minibatch_loss", minibatch_loss, epoch)
-
 
     if epoch % 100 == 0:
         for label, dataloader in [("train", trainloader), ("test", testloader)]:
@@ -148,21 +121,19 @@ for epoch in range(1000):  # loop over the dataset multiple times
                 optimizer.zero_grad()
                 outputs = net(inputs)
                 for i_sample, (p, l) in enumerate(zip(outputs, labels)):
-                    print("[epoch={}][{}] y={} y_pred={} loss={}".format(epoch, i_sample, l, p,criterion(l,p)))
+                    print("[epoch={}][{}] y={} y_pred={} loss={}".format(epoch, i_sample, l, p, criterion(l, p)))
                 loss += criterion(outputs, labels)
             loss /= (i + 1)
             writer.add_scalar("Loss/{}".format(label), loss, epoch)
-        save_model()
+        save_model(net, "model")
 
         # if running_loss < stopping_loss:
         #     break
 writer.flush()
 
 print('Finished Training')
-save_model()
-
-net = Net(input_size, hidden_layer_size, 1)
-net.load_state_dict(torch.load(PATH))
+save_model(net, "model")
+net = load_model("model")
 
 writer.close()
 
