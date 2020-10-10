@@ -2,14 +2,10 @@ import pandas as pd
 import pyodbc
 import torch
 import torch.utils.data as data_utils
-from sklearn.tree import DecisionTreeRegressor
-from torch.utils.tensorboard import SummaryWriter
 import numpy as np
-from devolution_network import DevolutionNetwork
-from utils import save_model, load_model
 
 
-def create_data():
+def retreive_db_data():
     conn = pyodbc.connect(DRIVER='{ODBC Driver 17 for SQL Server}',
                           SERVER='devohackaton.database.windows.net',
                           DATABASE='privilege',
@@ -21,6 +17,11 @@ def create_data():
     bdd_data = pd.read_sql_query('SELECT * FROM [privilege].[dbo].[userdetailtrains]', conn)
     credit_scores = pd.read_sql_query(
         'SELECT [UserId],[Amount],[Probability] FROM [privilege].[dbo].[RepaymentProbabilities]', conn)
+    return bdd_data, credit_scores
+
+
+def create_data():
+    bdd_data, credit_scores = retreive_db_data()
 
     # merge user data and creditscore
     data = []
@@ -36,6 +37,8 @@ def create_data():
     del data["CreditScore"]
     del data["CreationDate"]
     del data["Id"]
+    del data["FirstName"]
+    del data["LastName"]
 
     # noisy data
     del data["Income"]
@@ -83,4 +86,4 @@ def create_data():
     Xtrain = [x.tolist() for x, y in trainset]
     Xtest = [x.tolist() for x, y in testset]
 
-    return mean, std, n_train, input_size, trainset, testset, Xtrain, Ytrain, Xtest, Ytest
+    return mean, std, n_train, input_size, trainset, testset, Xtrain, Ytrain, Xtest, Ytest, data

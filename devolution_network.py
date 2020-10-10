@@ -16,7 +16,7 @@ class DevolutionNetwork(torch.nn.Module):
         self.hidden = []
         for k in range(len(self.hidden_layer_sizes) - 1):
             self.hidden.append(torch.nn.Linear(self.hidden_layer_sizes[k], self.hidden_layer_sizes[k + 1]))
-        self.output = torch.nn.Linear(self.hidden_layer_sizes[-1], self.output_size, bias=False)
+        self.output = torch.nn.Linear(self.hidden_layer_sizes[-1], self.output_size, bias=True)
 
     def forward(self, x):
         # x = self.bn1(x)
@@ -27,5 +27,5 @@ class DevolutionNetwork(torch.nn.Module):
 
         for layer in self.hidden:
             x = F.relu(layer(x))
-        x = F.sigmoid(self.output(x))
+        x = torch.sigmoid(self.output(x))
         return x

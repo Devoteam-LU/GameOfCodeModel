@@ -2,7 +2,7 @@ from sklearn.tree import DecisionTreeRegressor
 from setup_data import create_data
 from utils import save_tree, load_tree
 
-_, _, _, _, trainset, testset, Xtrain, Ytrain, Xtest, Ytest = create_data()
+_, _, _, _, trainset, testset, Xtrain, Ytrain, Xtest, Ytest,data = create_data()
 
 # Fit regression model
 tree = DecisionTreeRegressor(max_depth=2)
