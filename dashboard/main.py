@@ -6,6 +6,9 @@ import pyodbc
 from dash.dependencies import Input, Output
 import torch
 # all_teams_df = pd.read_csv('srcdata/shot_dist_compiled_data_2019_20.csv')
+from flask import Flask, jsonify
+from flask_restful import Resource, Api
+
 from setup_data import create_data, retreive_db_data
 from utils import load_tree, load_model
 
@@ -42,10 +45,13 @@ columns.remove("UserId")
 columns.remove("LastName")
 columns.remove("FirstName")
 
-
 types = ["number"] * len(columns)
 
-app = dash.Dash(__name__)
+server = Flask('my_app')
+# server = Flask('my_app')
+app = dash.Dash(server=server)
+
+# app = dash.Dash(__name__)
 server = app.server
 
 app.layout = html.Div(
@@ -56,8 +62,8 @@ app.layout = html.Div(
                                         zip(details["LastName"], details["FirstName"], details["UserId"])],
                                value='', style={'width': '300px'})]),
         html.Div([dcc.Dropdown(id='model-select',
-                               options=[{'label': model , 'value': model} for
-                                        model in ["RegressionTree","NeuralNetwork"]],
+                               options=[{'label': model, 'value': model} for
+                                        model in ["RegressionTree", "NeuralNetwork"]],
                                value='RegressionTree', style={'width': '300px'})]),
         dcc.Graph('shot-dist-graph', config={'displayModeBar': False})
     ]
@@ -75,40 +81,54 @@ app.layout = html.Div(
 
 @app.callback(
     Output('shot-dist-graph', 'figure'),
-    [Input('group-select', 'value'),Input("model-select","value")]
+    [Input('group-select', 'value'), Input("model-select", "value")]
 )
-def update_graph(user_id,model_type):
+def update_graph(user_id, model_type):
     import plotly.express as px
     if user_id == "":
         X_graph = [4, 5, 6]
         Y = [4, 5, 6]
     else:
-        print("user_id: {}".format(user_id))
-        X = details[details["UserId"] == user_id]
-        # X = details[details["UserId"] == "DF5A07B6-2880-4411-84F1-5F62153B0882"]
-        del X["UserId"]
-        del X["LastName"]
-        del X["FirstName"]
-        X = X.replace("M", 0).replace("F", 1).replace(True, 1).replace(False, 0)
-        print(X)
-        userinfo = list(X.values[0])
-        X = []
-        X_graph = []
-        for i in [10, 100, 500, 1000, 5000, 7500, 10000, 50000, 100000]:
-            amount = i  # np.exp(i)
-            X_graph.append(amount)
-            X.append(userinfo + [amount, ])
-        if model_type == "RegressionTree":
-            Y = tree.predict(X)
-        elif model_type == "NeuralNetwork":
-            Y = nn(torch.Tensor(X)).squeeze().tolist()
-        else:
-            pass
+        X, Y, X_graph = compute(user_id, model_type)
     fig = px.line(x=X_graph, y=Y, log_x=True, title="Probability of reimbursement given lend amount.")
     fig.update_yaxes(range=[0, 1])
     return fig
 
 
-#
+def compute(user_id, model_type, amounts=[10, 100, 500, 1000, 5000, 7500, 10000, 50000, 100000]):
+    print("user_id: {}".format(user_id))
+    X = details[details["UserId"] == user_id]
+    # X = details[details["UserId"] == "DF5A07B6-2880-4411-84F1-5F62153B0882"]
+    del X["UserId"]
+    del X["LastName"]
+    del X["FirstName"]
+    X = X.replace("M", 0).replace("F", 1).replace(True, 1).replace(False, 0)
+    print(X)
+    userinfo = list(X.values[0])
+    X = []
+
+    X_graph = []
+    for amount in amounts:
+        X_graph.append(amount)
+        X.append(userinfo + [amount, ])
+    if model_type == "RegressionTree":
+        Y = tree.predict(X)
+    elif model_type == "NeuralNetwork":
+        Y = nn(torch.Tensor(X)).squeeze().tolist()
+    else:
+        pass
+    return X, Y, X_graph
+
+@server.route('/api/<username>')
+def meteo(username):
+    amounts = [10, 100, 500, 1000, 5000, 7500, 10000, 50000, 100000]
+    X, Y, X_graph = compute(username, "RegressionTree", amounts)
+    dictionnaire = {
+        'probabilities': Y.tolist(),
+        'amounts': amounts,
+    }
+    return jsonify(dictionnaire)
+
+
 if __name__ == '__main__':
     app.run_server(debug=False)
