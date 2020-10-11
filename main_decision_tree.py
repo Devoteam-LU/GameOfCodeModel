@@ -6,8 +6,7 @@ from utils import save_tree, load_tree, save_ridge, load_ridge
 _, _, _, _, trainset, testset, Xtrain, Ytrain, Xtest, Ytest,data = create_data()
 
 # Fit regression model
-# tree = DecisionTreeRegressor(max_depth=2)
-tree = Ridge(alpha=0.5)
+tree = DecisionTreeRegressor(max_depth=2)
 
 tree.fit(Xtrain, Ytrain)
 print("prediction ....")
