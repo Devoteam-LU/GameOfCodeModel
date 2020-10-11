@@ -63,7 +63,7 @@ app.layout = html.Div(
                                options=[{'label': firstname + " " + lastname, 'value': userid} for
                                         firstname, lastname, userid in
                                         zip(details["LastName"], details["FirstName"], details["UserId"])],
-                               value='', style={'width': '300px'})]),
+                               value=details.iloc[0]["UserId"], style={'width': '300px'})]),
         html.Div([dcc.Dropdown(id='model-select',
                                options=[{'label': model, 'value': model} for
                                         model in ["RegressionTree","Ridge", "NeuralNetwork"]],
