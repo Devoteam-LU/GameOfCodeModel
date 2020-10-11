@@ -10,9 +10,17 @@ def save_tree(tree, path):
     with open(path + "/" + "tree.pickle", 'wb') as fp:
         pickle.dump(tree,fp)
 
+def save_ridge(tree, path):
+    os.makedirs(path, exist_ok=True)
+    with open(path + "/" + "ridge.pickle", 'wb') as fp:
+        pickle.dump(tree,fp)
 
 def load_tree(path):
     with open(path + "/" + "tree.pickle", 'rb') as fp:
+        return pickle.load(fp)
+
+def load_ridge(path):
+    with open(path + "/" + "ridge.pickle", 'rb') as fp:
         return pickle.load(fp)
 
 

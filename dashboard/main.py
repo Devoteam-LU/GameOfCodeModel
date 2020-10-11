@@ -12,9 +12,10 @@ from flask import Flask, jsonify
 from flask_restful import Resource, Api
 
 from setup_data import create_data, retreive_db_data
-from utils import load_tree, load_model
+from utils import load_tree, load_model, load_ridge
 
 tree = load_tree("../regression_tree_model")
+ridge = load_ridge("../ridge_model")
 nn = load_model("../model")
 
 conn = pyodbc.connect(DRIVER='{ODBC Driver 17 for SQL Server}',
@@ -65,7 +66,7 @@ app.layout = html.Div(
                                value='', style={'width': '300px'})]),
         html.Div([dcc.Dropdown(id='model-select',
                                options=[{'label': model, 'value': model} for
-                                        model in ["RegressionTree", "NeuralNetwork"]],
+                                        model in ["RegressionTree","Ridge", "NeuralNetwork"]],
                                value='RegressionTree', style={'width': '300px'})]),
         dcc.Graph('shot-dist-graph', config={'displayModeBar': False})
     ]
@@ -134,6 +135,8 @@ def compute(user_id, model_type, amounts=[10, 100, 500, 1000, 5000, 7500, 10000,
         Y = tree.predict(X)
     elif model_type == "NeuralNetwork":
         Y = nn(torch.Tensor(X)).squeeze().tolist()
+    elif model_type == "Ridge":
+        Y = ridge.predict(X)
     else:
         pass
     return X, Y, X_graph

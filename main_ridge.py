@@ -12,9 +12,9 @@ tree = Ridge(alpha=0.5)
 tree.fit(Xtrain, Ytrain)
 print("prediction ....")
 
-save_tree(tree, "regression_tree_model")
+save_ridge(tree, "ridge_model")
 
-tree = load_tree("regression_tree_model")
+tree = load_ridge("ridge_model")
 
 Ytrain_ = tree.predict(Xtrain)
 Ytest_ = tree.predict(Xtest)
