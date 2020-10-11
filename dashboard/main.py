@@ -3,6 +3,8 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import pyodbc
+import scipy.integrate as integrate
+import scipy.special as special
 from dash.dependencies import Input, Output
 import torch
 # all_teams_df = pd.read_csv('srcdata/shot_dist_compiled_data_2019_20.csv')
@@ -88,13 +90,19 @@ def update_graph(user_id, model_type):
     if user_id == "":
         X_graph = [4, 5, 6]
         Y = [4, 5, 6]
+        credit_score = 0.
     else:
         X, Y, X_graph = compute(user_id, model_type)
+        credit_score = compute_creditscore(user_id)
     data = []
     for x, y in zip(X_graph, Y):
         data.append([x, y])
-    df = pd.DataFrame(data,columns=["Amount lend","Probability"])
-    fig = px.line(df,x="Amount lend",y="Probability",title="Likelihood or reimbursement",log_x=True)
+
+    title="Likelihood or reimbursement (Credit score: {:.2f})".format(credit_score[0])
+    # title="Likelihood or reimbursement (Credit score: )" #.format(credit_score)
+    df = pd.DataFrame(data, columns=["Amount lend", "Probability"])
+    fig = px.line(df, x="Amount lend", y="Probability",
+                  title=title, log_x=True)
     fig.update_layout(
         font=dict(
             family="Courier New, monospace",
@@ -131,6 +139,16 @@ def compute(user_id, model_type, amounts=[10, 100, 500, 1000, 5000, 7500, 10000,
     return X, Y, X_graph
 
 
+def compute_creditscore(username):
+    amounts = [10, 100, 500, 1000, 5000, 7500, 10000, 50000, 100000]
+    X, Y, X_graph = compute(username, "RegressionTree", amounts)
+    from sklearn import linear_model
+    reg = linear_model.Ridge(alpha=.5)
+    reg.fit(np.array(X_graph).reshape(-1, 1), Y)
+    result = integrate.quad(lambda x: reg.predict([[x]]), 0, 100000)
+    return result
+
+
 @server.route('/api/<username>')
 def meteo(username):
     amounts = [10, 100, 500, 1000, 5000, 7500, 10000, 50000, 100000]
@@ -138,6 +156,15 @@ def meteo(username):
     dictionnaire = {
         'probabilities': Y.tolist(),
         'amounts': amounts,
+    }
+    return jsonify(dictionnaire)
+
+
+import numpy as np
+@server.route('/creditscore/<username>')
+def credit_score(username):
+    dictionnaire = {
+        'credit_score': compute_creditscore(username),
     }
     return jsonify(dictionnaire)
 
